@@ -1,0 +1,19 @@
+# secrets
+.env
+secrets.py
+# python
+venv/
+__pycache__/
+*.pyc
+# données personnelles / générées
+*.db
+captures/*
+dataset/reference/*
+dataset/refuses/*
+model/*
+!captures/.gitkeep
+!dataset/reference/.gitkeep
+!dataset/refuses/.gitkeep
+!model/.gitkeep
+# éditeur
+.vscode/

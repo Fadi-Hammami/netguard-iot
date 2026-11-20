@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Construction du dataset</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f1115; color: #e6e6e6; margin: 0; padding: 24px 16px;
+  }
+  .conteneur { max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  p.sous-titre { color: #9aa4b2; font-size: 13px; margin-bottom: 24px; }
+  label { display: block; font-size: 13px; color: #9aa4b2; margin: 16px 0 6px; }
+  input[type=text], select {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #2a2e37;
+    background: #171a21; color: #fff; font-size: 15px;
+  }
+  input[type=file] {
+    width: 100%; padding: 12px; border-radius: 8px; border: 1px dashed #2a2e37;
+    background: #171a21; color: #9aa4b2; font-size: 14px;
+  }
+  button {
+    width: 100%; margin-top: 20px; padding: 12px; border: none; border-radius: 8px;
+    background: #2563eb; color: #fff; font-weight: 600; font-size: 15px; cursor: pointer;
+  }
+  button:disabled { background: #374151; cursor: not-allowed; }
+  #resultat {
+    margin-top: 16px; padding: 12px 14px; border-radius: 8px; font-size: 13px; display: none;
+  }
+  #resultat.ok { background: #113a24; color: #4ade80; display: block; }
+  #resultat.erreur { background: #3a1111; color: #f87171; display: block; }
+  .liste { margin-top: 28px; font-size: 13px; color: #9aa4b2; }
+  .liste b { color: #e6e6e6; }
+  .tag {
+    display: inline-block; background: #171a21; border: 1px solid #2a2e37;
+    padding: 3px 10px; border-radius: 999px; margin: 3px 4px 0 0; font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="conteneur">
+  <h1>📸 Construction du dataset</h1>
+  <p class="sous-titre">Ajoute des photos pour une personne autorisée ou refusée. 5 à 10 photos par personne recommandées.</p>
+
+  <form id="formulaire">
+    <label>Nom de la personne</label>
+    <input type="text" name="nom" id="nom" placeholder="Ex: Amine" required>
+
+    <label>Type</label>
+    <select name="type" id="type">
+      <option value="autorise">Autorisé (accès permis)</option>
+      <option value="refuse">Refusé (accès bloqué)</option>
+    </select>
+
+    <label>Photos (plusieurs à la fois possible)</label>
+    <input type="file" name="photos" id="photos" accept="image/*" capture multiple required>
+
+    <button type="submit" id="bouton">Envoyer</button>
+  </form>
+
+  <div id="resultat"></div>
+
+  <div class="liste">
+    <div><b>Autorisés :</b> <span id="liste-autorises">—</span></div>
+    <div style="margin-top:6px;"><b>Refusés :</b> <span id="liste-refuses">—</span></div>
+  </div>
+</div>
+
+<script>
+async function chargerPersonnes() {
+    const r = await fetch('/api/personnes');
+    const d = await r.json();
+    document.getElementById('liste-autorises').innerHTML =
+        d.autorises.length ? d.autorises.map(n => `<span class="tag">${n}</span>`).join('') : 'aucun';
+    document.getElementById('liste-refuses').innerHTML =
+        d.refuses.length ? d.refuses.map(n => `<span class="tag">${n}</span>`).join('') : 'aucun';
+}
+
+document.getElementById('formulaire').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const bouton = document.getElementById('bouton');
+    const resultat = document.getElementById('resultat');
+    bouton.disabled = true;
+    bouton.textContent = 'Envoi en cours...';
+
+    const formData = new FormData(e.target);
+    try {
+        const r = await fetch('/enroll', { method: 'POST', body: formData });
+        const d = await r.json();
+        resultat.className = d.succes ? 'ok' : 'erreur';
+        resultat.textContent = d.message;
+        if (d.succes) {
+            document.getElementById('photos').value = '';
+            chargerPersonnes();
+        }
+    } catch (err) {
+        resultat.className = 'erreur';
+        resultat.textContent = 'Erreur réseau : ' + err;
+    } finally {
+        bouton.disabled = false;
+        bouton.textContent = 'Envoyer';
+    }
+});
+
+chargerPersonnes();
+</script>
+</body>
+</html>

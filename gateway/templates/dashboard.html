@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block titre %}Tableau de bord{% endblock %}
+{% block nav_dashboard %}actif{% endblock %}
+
+{% block contenu %}
+    {% if not modele_charge %}
+    <div class="alerte">
+        ⚠️ Aucun modèle entraîné. Tous les visages seront "inconnus" jusqu'à ce que tu
+        ajoutes des personnes via <code>capture_data.py</code> (port 5001)
+        et lances <code>python train_model.py</code>.
+    </div>
+    {% endif %}
+
+    <!-- --- Bannière d'alerte capteurs, pleine largeur, visible immediatement --- -->
+    <div id="banniere-alerte" style="display:none;padding:14px 18px;border-radius:10px;margin-bottom:18px;align-items:center;gap:12px;">
+        <span id="banniere-icone" style="font-size:24px;"></span>
+        <div>
+            <div id="banniere-titre" style="font-size:14px;font-weight:800;"></div>
+            <div id="banniere-detail" style="font-size:12px;opacity:0.85;"></div>
+        </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start;">
+        <div>
+            <div class="carte" style="overflow:hidden;">
+                <div style="padding:10px 14px;border-bottom:1px solid #eef1f6;display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:13px;font-weight:700;color:#111827;">Flux caméra</span>
+                    <span style="font-size:10px;padding:2px 8px;border-radius:4px;background:#fee2e2;color:#dc2626;border:1px solid #fecaca;">● LIVE</span>
+                </div>
+                <img src="/video_feed" style="width:100%;display:block;background:#000;min-height:240px;">
+            </div>
+            <p style="font-size:12px;color:#94a3b8;margin-top:8px;">
+                Flux continu (~toutes les frames reçues de l'ESP32), avec ou sans visage détecté.
+            </p>
+
+            <!-- --- Carte capteurs MSP432 --- -->
+            <div class="carte" style="padding:16px;margin-top:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <span style="font-size:13px;font-weight:700;color:#111827;">Capteurs environnementaux</span>
+                    <span id="telemetrie-alerte" class="badge badge-aucune">AUCUNE</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+                    <div style="text-align:center;">
+                        <div style="font-size:20px;">🌡️</div>
+                        <div id="telemetrie-temp" style="font-size:18px;font-weight:800;color:#111827;">—</div>
+                        <div style="font-size:10px;color:#94a3b8;">Température (°C)</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:20px;">💧</div>
+                        <div id="telemetrie-hum" style="font-size:18px;font-weight:800;color:#111827;">—</div>
+                        <div style="font-size:10px;color:#94a3b8;">Humidité (%)</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:20px;">🔊</div>
+                        <div id="telemetrie-son" style="font-size:18px;font-weight:800;color:#111827;">—</div>
+                        <div style="font-size:10px;color:#94a3b8;">Son (amplitude)</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:20px;">💡</div>
+                        <div id="telemetrie-lum" style="font-size:18px;font-weight:800;color:#111827;">—</div>
+                        <div style="font-size:10px;color:#94a3b8;">Lumière</div>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #eef1f6;">
+                    <span id="telemetrie-pir-icone" style="font-size:16px;">⚪</span>
+                    <span id="telemetrie-pir-texte" style="font-size:12px;color:#6b7280;">Aucun mouvement détecté</span>
+                    <span id="telemetrie-heure" style="font-size:10px;color:#c0c6d1;margin-left:auto;font-family:monospace;"></span>
+                </div>
+            </div>
+
+            <!-- --- Historique des alertes capteurs (uniquement les cas != AUCUNE) --- -->
+            <div class="carte" style="padding:16px;margin-top:16px;">
+                <span style="font-size:13px;font-weight:700;color:#111827;">Historique des alertes capteurs</span>
+                <div id="historique-alertes" style="margin-top:10px;font-size:12px;color:#94a3b8;">
+                    Aucune alerte pour l'instant.
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div id="statut-box" class="carte" style="padding:18px;text-align:center;margin-bottom:14px;">
+                <div id="statut-icone" style="font-size:32px;">⏳</div>
+                <div id="statut-nom" style="font-size:16px;font-weight:800;margin-top:6px;color:#111827;">En attente...</div>
+                <div id="statut-heure" style="font-size:11px;color:#94a3b8;margin-top:4px;font-family:monospace;"></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+                <div class="carte" style="padding:12px;">
+                    <div id="stat-total" style="font-size:20px;font-weight:800;color:#2563eb;">0</div>
+                    <div style="font-size:11px;color:#6b7280;">Total</div>
+                </div>
+                <div class="carte" style="padding:12px;">
+                    <div id="stat-autorises" style="font-size:20px;font-weight:800;color:#16a34a;">0</div>
+                    <div style="font-size:11px;color:#6b7280;">Autorisés</div>
+                </div>
+                <div class="carte" style="padding:12px;">
+                    <div id="stat-refuses" style="font-size:20px;font-weight:800;color:#dc2626;">0</div>
+                    <div style="font-size:11px;color:#6b7280;">Refusés</div>
+                </div>
+                <div class="carte" style="padding:12px;">
+                    <div id="stat-inconnus" style="font-size:20px;font-weight:800;color:#d97706;">0</div>
+                    <div style="font-size:11px;color:#6b7280;">Inconnus</div>
+                </div>
+            </div>
+
+            <button onclick="reentrainer()" style="width:100%;margin-bottom:14px;">Réentraîner le modèle</button>
+
+            <!-- --- Legende des scenarios d'alerte combines --- -->
+            <div class="carte" style="padding:14px;">
+                <span style="font-size:13px;font-weight:700;color:#111827;">Scénarios d'alerte</span>
+                <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">
+                    <div style="display:flex;gap:8px;align-items:flex-start;">
+                        <span class="badge badge-critique" style="white-space:nowrap;">CRITIQUE</span>
+                        <span style="font-size:11px;color:#6b7280;">Température ≥ 32°C + mouvement détecté</span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:flex-start;">
+                        <span class="badge badge-intrusion" style="white-space:nowrap;">INTRUSION</span>
+                        <span style="font-size:11px;color:#6b7280;">Mouvement + son fort à proximité</span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:flex-start;">
+                        <span class="badge badge-mouvement_nuit" style="white-space:nowrap;">MVT NUIT</span>
+                        <span style="font-size:11px;color:#6b7280;">Mouvement + obscurité (faible luminosité)</span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:flex-start;">
+                        <span class="badge badge-environnementale" style="white-space:nowrap;">ENVIRON.</span>
+                        <span style="font-size:11px;color:#6b7280;">Température ≥ 32°C, sans présence</span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:flex-start;">
+                        <span class="badge badge-presence" style="white-space:nowrap;">PRESENCE</span>
+                        <span style="font-size:11px;color:#6b7280;">Mouvement seul, rien d'anormal</span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:flex-start;">
+                        <span class="badge badge-aucune" style="white-space:nowrap;">AUCUNE</span>
+                        <span style="font-size:11px;color:#6b7280;">Conditions normales</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 style="margin-top:28px;font-size:16px;color:#111827;">Dernières détections</h2>
+    {% if not captures %}
+        <p style="color:#6b7280;font-size:13px;">Aucune capture avec visage reçue pour l'instant.</p>
+    {% else %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-top:12px;">
+        {% for c in captures %}
+        <div class="carte" style="overflow:hidden;">
+            <img src="/captures/{{ c.fichier_image }}" style="width:100%;height:110px;object-fit:cover;display:block;">
+            <div style="padding:8px 10px;">
+                <span class="badge badge-{{ c.statut }}">
+                    {% if c.statut == 'autorise' %}Autorisé{% elif c.statut == 'refuse' %}Refusé{% else %}Inconnu{% endif %}
+                </span>
+                <div style="font-size:12px;font-weight:700;margin-top:4px;color:#111827;">{{ c.nom or "—" }}</div>
+                <div style="font-size:10px;color:#94a3b8;">{{ c.horodatage }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+<script>
+const ICONES = { autorise: '✅', refuse: '⛔', inconnu: '❓', attente: '⏳' };
+
+// Config des scenarios pour la banniere : couleurs + texte + icone
+const SCENARIOS = {
+    AUCUNE:            { afficher: false },
+    PRESENCE:          { afficher: true, icone: '🔵', titre: 'Présence détectée', detail: 'Mouvement détecté par le PIR, aucune autre anomalie.', bg: '#dbeafe', fg: '#1e40af' },
+    ENVIRONNEMENTALE:  { afficher: true, icone: '🌡️', titre: 'Alerte environnementale', detail: 'Température élevée (≥ 32°C), pas de présence.', bg: '#fef3c7', fg: '#92400e' },
+    MOUVEMENT_NUIT:    { afficher: true, icone: '🌙', titre: 'Mouvement dans le noir', detail: 'Mouvement détecté en conditions de faible luminosité.', bg: '#ede9fe', fg: '#5b21b6' },
+    INTRUSION:         { afficher: true, icone: '🚨', titre: 'Intrusion potentielle', detail: 'Mouvement détecté avec un niveau sonore élevé.', bg: '#ffedd5', fg: '#9a3412' },
+    CRITIQUE:          { afficher: true, icone: '🔥', titre: 'Alerte critique', detail: 'Température élevée ET mouvement détecté simultanément.', bg: '#fee2e2', fg: '#991b1b' },
+};
+
+async function rafraichirStatut() {
+    try {
+        const r = await fetch('/api/status');
+        const d = await r.json();
+        document.getElementById('statut-icone').textContent = ICONES[d.type] || '⏳';
+        document.getElementById('statut-nom').textContent = d.nom || (d.type === 'attente' ? 'En attente...' : d.type);
+        document.getElementById('statut-heure').textContent = d.heure || '';
+    } catch (e) {}
+}
+
+async function rafraichirStats() {
+    try {
+        const r = await fetch('/api/stats');
+        const d = await r.json();
+        document.getElementById('stat-total').textContent = d.total;
+        document.getElementById('stat-autorises').textContent = d.autorises;
+        document.getElementById('stat-refuses').textContent = d.refuses;
+        document.getElementById('stat-inconnus').textContent = d.inconnus;
+    } catch (e) {}
+}
+
+function majBanniere(alerte) {
+    const banniere = document.getElementById('banniere-alerte');
+    const scenario = SCENARIOS[alerte] || SCENARIOS.AUCUNE;
+
+    if (!scenario.afficher) {
+        banniere.style.display = 'none';
+        return;
+    }
+    banniere.style.display = 'flex';
+    banniere.style.background = scenario.bg;
+    banniere.style.color = scenario.fg;
+    document.getElementById('banniere-icone').textContent = scenario.icone;
+    document.getElementById('banniere-titre').textContent = scenario.titre;
+    document.getElementById('banniere-titre').style.color = scenario.fg;
+    document.getElementById('banniere-detail').textContent = scenario.detail;
+}
+
+async function rafraichirTelemetrie() {
+    try {
+        const r = await fetch('/api/telemetrie');
+        const d = await r.json();
+        if (!d || Object.keys(d).length === 0) return;
+
+        document.getElementById('telemetrie-temp').textContent = (d.temperature ?? '—');
+        document.getElementById('telemetrie-hum').textContent = (d.humidite ?? '—');
+        document.getElementById('telemetrie-son').textContent = (d.son ?? '—');
+        document.getElementById('telemetrie-lum').textContent = (d.lumiere ?? '—');
+        document.getElementById('telemetrie-heure').textContent = d.horodatage || '';
+
+        const pirActif = d.pir === 1 || d.pir === true;
+        document.getElementById('telemetrie-pir-icone').textContent = pirActif ? '🟢' : '⚪';
+        document.getElementById('telemetrie-pir-texte').textContent = pirActif
+            ? 'Mouvement détecté' : 'Aucun mouvement détecté';
+
+        const alerte = (d.alerte || 'AUCUNE').toString().toUpperCase();
+        const badge = document.getElementById('telemetrie-alerte');
+        badge.textContent = alerte;
+        badge.className = 'badge badge-' + alerte.toLowerCase();
+
+        majBanniere(alerte);
+    } catch (e) {}
+}
+
+async function rafraichirHistoriqueAlertes() {
+    try {
+        const r = await fetch('/api/telemetrie/historique?limite=50');
+        const lignes = await r.json();
+        const alertes = lignes.filter(l => l.alerte && l.alerte.toUpperCase() !== 'AUCUNE');
+
+        const conteneur = document.getElementById('historique-alertes');
+        if (alertes.length === 0) {
+            conteneur.innerHTML = "<span style=\"font-size:12px;color:#94a3b8;\">Aucune alerte pour l'instant.</span>";
+            return;
+        }
+
+        conteneur.innerHTML = alertes.slice(0, 10).map(l => {
+            const a = (l.alerte || 'AUCUNE').toUpperCase();
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f1f3f7;">
+                        <span class="badge badge-${a.toLowerCase()}" style="font-size:10px;">${a}</span>
+                        <span style="font-size:11px;color:#6b7280;">T:${l.temperature ?? '—'}°C · Son:${l.son ?? '—'} · Lum:${l.lumiere ?? '—'} · PIR:${l.pir ? 'oui' : 'non'}</span>
+                        <span style="font-size:10px;color:#c0c6d1;font-family:monospace;">${l.horodatage || ''}</span>
+                    </div>`;
+        }).join('');
+    } catch (e) {}
+}
+
+function reentrainer() {
+    fetch('/entrainer', { method: 'POST' })
+        .then(r => r.json())
+        .then(d => alert(d.message))
+        .catch(e => alert('Erreur : ' + e));
+}
+
+setInterval(rafraichirStatut, 2000);
+setInterval(rafraichirStats, 3000);
+setInterval(rafraichirTelemetrie, 2000);
+setInterval(rafraichirHistoriqueAlertes, 5000);
+setInterval(() => location.reload(), 60000);
+rafraichirStatut();
+rafraichirStats();
+rafraichirTelemetrie();
+rafraichirHistoriqueAlertes();
+</script>
+{% endblock %}

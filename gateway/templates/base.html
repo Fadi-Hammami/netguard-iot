@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>{% block titre %}Gateway Contrôle d'Accès{% endblock %}</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f4f6fb; color: #1f2937; margin: 0;
+        }
+        nav {
+            background: #ffffff; padding: 14px 28px; display: flex; gap: 22px;
+            align-items: center; border-bottom: 1px solid #e5e9f2; flex-wrap: wrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        nav a { color: #64748b; text-decoration: none; font-weight: 600; font-size: 14px; }
+        nav a:hover, nav a.actif { color: #2563eb; }
+        nav .titre { font-weight: 800; color: #111827; margin-right: auto; font-size: 15px; }
+        main { padding: 24px; max-width: 1180px; margin: 0 auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #eef1f6; font-size: 13px; }
+        th { color: #6b7280; font-size: 12px; text-transform: uppercase; background: #f9fafc; }
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+        .badge-autorise { background: #dcfce7; color: #16a34a; }
+        .badge-refuse { background: #fee2e2; color: #dc2626; }
+        .badge-inconnu { background: #fef3c7; color: #d97706; }
+        .badge-aucune { background: #e5e7eb; color: #4b5563; }
+        .badge-presence { background: #dbeafe; color: #2563eb; }
+        .badge-environnementale { background: #ffedd5; color: #ea580c; }
+        .badge-mouvement_nuit { background: #ede9fe; color: #7c3aed; }
+        .badge-intrusion { background: #fee2e2; color: #dc2626; }
+        .badge-critique { background: #dc2626; color: #ffffff; }
+        .alerte {
+            background: #fff7e6; border: 1px solid #fbbf24; color: #92400e;
+            padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; font-size: 13px;
+        }
+        button {
+            background: #2563eb; color: #fff; border: none; padding: 8px 16px;
+            border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 13px;
+        }
+        button:hover { background: #1d4ed8; }
+        .carte {
+            background: #fff; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            border: 1px solid #eef1f6;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <span class="titre">🎥 NetGuard-IoT</span>
+        <a href="/" class="{% block nav_dashboard %}{% endblock %}">Tableau de bord</a>
+        <a href="/historique" class="{% block nav_historique %}{% endblock %}">Historique</a>
+    </nav>
+    <main>
+        {% block contenu %}{% endblock %}
+    </main>
+</body>
+</html>

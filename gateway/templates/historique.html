@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block titre %}Historique{% endblock %}
+{% block nav_historique %}actif{% endblock %}
+
+{% block contenu %}
+    <h2 style="font-size:16px;">Historique des détections</h2>
+
+    <p style="font-size:13px;">
+        <a href="/historique">Tout</a> ·
+        <a href="/historique?statut=autorise">Autorisés</a> ·
+        <a href="/historique?statut=refuse">Refusés</a> ·
+        <a href="/historique?statut=inconnu">Inconnus</a>
+    </p>
+
+    <table>
+        <thead>
+            <tr><th>Image</th><th>Date</th><th>Statut</th><th>Nom</th><th>Confiance</th></tr>
+        </thead>
+        <tbody>
+            {% for c in captures %}
+            <tr>
+                <td><img src="/captures/{{ c.fichier_image }}" style="width:56px;height:42px;object-fit:cover;border-radius:4px;"></td>
+                <td>{{ c.horodatage }}</td>
+                <td><span class="badge badge-{{ c.statut }}">
+                    {% if c.statut == 'autorise' %}Autorisé{% elif c.statut == 'refuse' %}Refusé{% else %}Inconnu{% endif %}
+                </span></td>
+                <td>{{ c.nom or "—" }}</td>
+                <td>{{ "%.1f"|format(c.confiance) if c.confiance is not none else "—" }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5">Aucune entrée.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

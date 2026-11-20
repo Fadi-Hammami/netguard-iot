@@ -1,0 +1,115 @@
+==============================================================================
+ NetGuard-IoT
+ Plateforme IoT de supervision environnementale et de contrôle d'accès
+ avec Edge AI (reconnaissance faciale locale)
+==============================================================================
+ Auteur  : Fedi Hammami - ENIT (Tunis), stage chez Telnet Holding, 2026
+==============================================================================
+
+1. PRESENTATION
+---------------
+NetGuard-IoT est une plateforme IoT de supervision d'infrastructure et de
+contrôle d'accès. Elle analyse les images et les mesures de capteurs
+directement sur site grâce à l'Edge AI, pour détecter les personnes
+inconnues, surveiller l'environnement et alerter en temps réel, sans
+dépendre du cloud.
+
+2. ARCHITECTURE
+---------------
+  MSP432 + Grove (capteurs)
+        |  UART (J11, eUSCI_A2, 9600 bauds, trames JSON)
+        v
+  ESP32 + ArduCAM OV5642 (MicroPython)
+        |  MQTT (mesures)        |  HTTP POST /upload (images JPEG)
+        v                        v
+  Raspberry Pi 3B+ (gateway) : Mosquitto, Flask, OpenCV, SQLite
+        |
+        v
+  Dashboard web : vidéo quasi-directe, mesures, alertes, historique
+  + alertes email (réponse ACCEPTER / REFUSER pour les visages inconnus)
+
+3. CONTENU DE L'ARCHIVE
+-----------------------
+  firmware-msp432/   Code C du nœud capteurs (MSP432P401R)
+    main.c             programme final : lecture des capteurs, règles
+                       d'alerte, buzzer, envoi JSON vers l'ESP32 (J11)
+                       et vers PuTTY (debug)
+    tests/             programmes de test isolés (afficheur, capteur de
+                       lumière, capteur de son, multi-capteurs)
+
+  firmware-esp32/    Code MicroPython du nœud caméra (ESP32)
+    main.py            Wi-Fi, flux caméra HTTP vers le gateway, relais
+                       UART -> MQTT des trames du MSP432
+    Arducam.py         pilote de la caméra ArduCAM (SPI/I2C)
+    OV5642.py          tables de registres du capteur OV5642
+    secrets_example.py modèle du fichier secrets.py (Wi-Fi)
+
+  gateway/           Serveur du Raspberry Pi 3B+
+    app.py             serveur Flask (/upload, dashboard, API)
+    face_engine.py     détection Haar Cascade + reconnaissance LBPH
+    mqtt_listener.py   abonné MQTT (télémétrie du MSP432)
+    db.py              base SQLite (historique, en_attente, telemetrie)
+    email_alerts.py    alertes email et réponses ACCEPTER / REFUSER
+    capture_data.py    outil web de construction du dataset
+    train_model.py     entraînement du modèle LBPH
+    templates/         pages web (dashboard, historique, enrôlement)
+    README.md          installation et utilisation détaillées
+
+4. MATERIEL
+-----------
+  - LaunchPad MSP-EXP432P401R + Grove BoosterPack
+  - Capteurs Grove : DHT22 (température/humidité), son, lumière, PIR,
+    buzzer
+  - ESP32 + caméra ArduCAM OV5642
+  - Raspberry Pi 3B+ (Debian, venv Python)
+
+5. SCENARIOS D'ALERTE (règles du MSP432)
+----------------------------------------
+  CRITIQUE        température >= 32 °C + mouvement
+  INTRUSION       mouvement + son fort
+  MOUVEMENT NUIT  mouvement + faible luminosité
+  ENVIRONNEMENTALE température >= 32 °C sans présence
+  PRESENCE        mouvement seul
+  AUCUNE          conditions normales
+
+6. RECONNAISSANCE FACIALE (Edge AI)
+-----------------------------------
+  - Détection : Haar Cascade (Viola-Jones)
+  - Reconnaissance : LBPH (Local Binary Patterns Histograms), distance
+    de confiance comparée à un seuil (70 par défaut)
+  - Résultat : autorisé / refusé / inconnu
+  - Inconnu : email d'alerte, réponse ACCEPTER ou REFUSER met à jour le
+    modèle immédiatement
+  Techniques d'apprentissage automatique classiques (pas de deep
+  learning), adaptées à un Raspberry Pi 3B+.
+
+7. MISE EN ROUTE RAPIDE
+-----------------------
+  a) MSP432 : ouvrir firmware-msp432/main.c dans Segger Embedded Studio
+     (ou Code Composer Studio), compiler et flasher la carte.
+  b) ESP32 : copier main.py, Arducam.py, OV5642.py et secrets.py (créé
+     à partir de secrets_example.py) sur la carte avec Thonny. Adapter
+     GATEWAY_IP et MQTT_BROKER à l'adresse IP du Raspberry Pi.
+  c) Gateway (Raspberry Pi) :
+       cd gateway
+       python3 -m venv venv && source venv/bin/activate
+       pip install -r requirements.txt
+       cp .env.example .env     (puis renseigner MQTT et email)
+       python capture_data.py   (construire le dataset)
+       python train_model.py    (entraîner le modèle)
+       python app.py            (lancer le gateway)
+     Dashboard : http://IP_DU_PI:5000
+     Prérequis : broker Mosquitto actif sur le Raspberry Pi.
+
+8. SECURITE ET DONNEES PERSONNELLES
+-----------------------------------
+  Aucun mot de passe n'est inclus dans l'archive. Les identifiants Wi-Fi
+  et email se configurent dans secrets.py (ESP32) et .env (gateway).
+  Ne jamais publier ces fichiers ni les photos de visages.
+
+9. PERSPECTIVES
+---------------
+  Authentification et TLS pour MQTT, connexion au tableau de bord,
+  stockage temporel (InfluxDB + Grafana), détection d'anomalies par
+  apprentissage automatique, LoRa pour les nœuds distants.
+==============================================================================
